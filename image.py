@@ -92,9 +92,9 @@ def create_model(num_classes, batch_size, img_height, img_width):
 
 
 # 모델 학습 및 학습 기록 반환
-# arguments: train (Dataset), val (Dataset), epochs (Int)
+# arguments: model (Model), train (Dataset), val (Dataset), epochs (Int)
 # return: history (History)
-def train_model(train, val, epochs):
+def train_model(model, train, val, epochs):
   history = model.fit(train, validation_data=val, epochs=epochs)
   return history
 
@@ -147,6 +147,6 @@ if __name__ == "__main__":
   # 모델 생성
   model = create_model(len(class_names), batch_size, img_height, img_width)
   # 모델 학습
-  history = train_model(train, val, epochs)
+  history = train_model(model, train, val, epochs)
   # 훈련 결과 시각화
   visualize_history(history, epochs)
