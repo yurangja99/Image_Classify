@@ -61,9 +61,35 @@ def visualize(train_ds, classes):
   plt.figure(figsize=(10, 10))  
   for images, labels in train_ds.take(1):
     for i in range(9):
-      ax = plt.subplot(3, 3, i + 1)
+      plt.subplot(3, 3, i + 1)
       plt.imshow(images[i].numpy().astype("uint8"))
       plt.title(classes[labels[i]])
+      plt.axis("off")
+  plt.show()
+
+
+# 데이터 증대: 임의 변환
+# arguments: img_height (Int), img_width (Int)
+# return: data_augmentation (keras.Sequential)
+def random_transform_layer(img_height, img_width):
+  return keras.Sequential([
+    layers.experimental.preprocessing.RandomFlip("horizontal", input_shape=(img_height, img_width, 3)),
+    layers.experimental.preprocessing.RandomRotation(0.1),
+    layers.experimental.preprocessing.RandomZoom(0.1)
+  ])
+
+
+# 변환된 데이터 시각화
+# arguments: train_ds (Dataset), img_height (Int), img_width (Int)
+# return: ()
+def visualize_random(train_ds, img_height, img_width):
+  # 변환된 사진들 시각화
+  plt.figure(figsize=(10, 10))
+  for images, _ in train_ds.take(1):
+    for i in range(9):
+      augmented_images = random_transform_layer(img_height, img_width)(images)
+      plt.subplot(3, 3, i + 1)
+      plt.imshow(augmented_images[0].numpy().astype("uint8"))
       plt.axis("off")
   plt.show()
 
@@ -72,8 +98,9 @@ def visualize(train_ds, classes):
 # arguments: num_classes (Int), batch_size (Int), img_height (Int), img_width (Int)
 # return: model (Model), history (History)
 def create_model(num_classes, batch_size, img_height, img_width):
-  # 여기서는 모델 첫 계층에 표준화를 진행한다.
+  # 여기서는 모델 첫 계층에 표준화를 진행한다. (Dropout 적용)
   model = Sequential([
+    random_transform_layer(img_height, img_width),
     layers.experimental.preprocessing.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
     layers.Conv2D(16, 3, padding='same', activation='relu'),
     layers.MaxPooling2D(),
@@ -81,6 +108,7 @@ def create_model(num_classes, batch_size, img_height, img_width):
     layers.MaxPooling2D(),
     layers.Conv2D(64, 3, padding='same', activation='relu'),
     layers.MaxPooling2D(),
+    layers.Dropout(0.2),
     layers.Flatten(),
     layers.Dense(128, activation='relu'),
     layers.Dense(num_classes, activation='softmax')
@@ -130,13 +158,39 @@ def visualize_history(history, epochs):
   plt.show()
 
 
+# 새로운 데이터에 대한 예측: train, validation set에 모두 있지 않은 것에 대한 예측
+# arguments: model (Model), img_height (Int), img_width (Int), classes (list of String)
+# return: ()
+def predict(model, img_height, img_width, classes):
+  # 새로운 데이터 캐싱
+  sunflower_url = "https://storage.googleapis.com/download.tensorflow.org/example_images/592px-Red_sunflower.jpg"
+  sunflower_path = tf.keras.utils.get_file('Red_sunflower', origin=sunflower_url)
+  
+  # 사진 배열을 얻어오기
+  img = keras.preprocessing.image.load_img(
+      sunflower_path, target_size=(img_height, img_width)
+  )
+  img_array = keras.preprocessing.image.img_to_array(img)
+  img_array = tf.expand_dims(img_array, 0) # Create a batch
+
+  # 훈련된 모델을 이용하여 예측
+  predictions = model.predict(img_array)
+  score = tf.nn.softmax(predictions[0])
+
+  # 예측 결과 출력
+  print(
+      "This image most likely belongs to {} with a {:.2f} percent confidence."
+      .format(classes[np.argmax(score)], 100 * np.max(score))
+  )
+
+
 # 메인 함수
 if __name__ == "__main__":
   # 몇몇 파라미터를 정한다.
   batch_size = 32
   img_width = 180
   img_height = 180
-  epochs = 10
+  epochs = 15
 
   # 원격 저장소에서 데이터 로드
   data_dir = load_data()
@@ -144,9 +198,13 @@ if __name__ == "__main__":
   train_ds, val_ds, class_names = preprocess(data_dir, batch_size, img_height, img_width)
   # 처음 9개의 사진 시각화
   visualize(train_ds, class_names)
+  # 데이터 증대 후 시각화
+  visualize_random(train_ds, img_height, img_width)
   # 모델 생성
   model = create_model(len(class_names), batch_size, img_height, img_width)
   # 모델 학습
   history = train_model(model, train_ds, val_ds, epochs)
   # 훈련 결과 시각화
   visualize_history(history, epochs)
+  # 새로운 데이터에 대해 예측
+  predict(model, img_height, img_width, class_names)
