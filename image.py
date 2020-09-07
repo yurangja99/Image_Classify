@@ -54,16 +54,16 @@ def preprocess(data_dir, batch_size, img_height, img_width):
 
 
 # 데이터 시각화
-# arguments: train_ds (Dataset)
+# arguments: train_ds (Dataset), classes (list of String)
 # return: ()
-def visualize(train_ds):
+def visualize(train_ds, classes):
   # 처음 9개의 사진 시각화
   plt.figure(figsize=(10, 10))  
   for images, labels in train_ds.take(1):
     for i in range(9):
       ax = plt.subplot(3, 3, i + 1)
       plt.imshow(images[i].numpy().astype("uint8"))
-      plt.title(class_names[labels[i]])
+      plt.title(classes[labels[i]])
       plt.axis("off")
   plt.show()
 
@@ -83,7 +83,7 @@ def create_model(num_classes, batch_size, img_height, img_width):
     layers.MaxPooling2D(),
     layers.Flatten(),
     layers.Dense(128, activation='relu'),
-    layers.Dense(num_classes)
+    layers.Dense(num_classes, activation='softmax')
   ])
   # optimizer, loss, metrics를 설정하여 컴파일하고 정보를 출력하고 반환한다.
   model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
@@ -94,8 +94,8 @@ def create_model(num_classes, batch_size, img_height, img_width):
 # 모델 학습 및 학습 기록 반환
 # arguments: model (Model), train (Dataset), val (Dataset), epochs (Int)
 # return: history (History)
-def train_model(model, train, val, epochs):
-  history = model.fit(train, validation_data=val, epochs=epochs)
+def train_model(model, train_ds, val_ds, epochs):
+  history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
   return history
 
 
@@ -141,12 +141,12 @@ if __name__ == "__main__":
   # 원격 저장소에서 데이터 로드
   data_dir = load_data()
   # 전처리하여 training set, validation set 생성
-  train, val, class_names = preprocess(data_dir, batch_size, img_height, img_width)
+  train_ds, val_ds, class_names = preprocess(data_dir, batch_size, img_height, img_width)
   # 처음 9개의 사진 시각화
-  visualize(train)
+  visualize(train_ds, class_names)
   # 모델 생성
   model = create_model(len(class_names), batch_size, img_height, img_width)
   # 모델 학습
-  history = train_model(model, train, val, epochs)
+  history = train_model(model, train_ds, val_ds, epochs)
   # 훈련 결과 시각화
   visualize_history(history, epochs)
