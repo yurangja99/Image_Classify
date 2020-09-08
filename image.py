@@ -175,7 +175,8 @@ def predict(model, img_height, img_width, classes):
 
   # 훈련된 모델을 이용하여 예측
   predictions = model.predict(img_array)
-  score = tf.nn.softmax(predictions[0])
+  # score = tf.nn.softmax(predictions[0])
+  score = predictions[0]
 
   # 예측 결과 출력
   print(
